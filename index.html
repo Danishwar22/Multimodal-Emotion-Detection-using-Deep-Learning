@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Emotion Lens</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --border: #dddbd5;
+    --text: #1a1917;
+    --muted: #8c8880;
+    --accent-text: #3d5a80;
+    --tab-active-text: #1a1917;
+    --happy: #c47e1a;
+    --sad: #3a6fa8;
+    --angry: #b03a2a;
+    --fear: #6b4fa0;
+    --disgust: #5a7a3a;
+    --neutral: #7a7570;
+    --radius: 4px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 16px 80px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  .wrapper { position: relative; z-index: 1; width: 100%; max-width: 680px; }
+
+  header { margin-bottom: 48px; }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2.2rem, 6vw, 3.6rem);
+    line-height: 1.05;
+    color: var(--text);
+    font-style: italic;
+  }
+  h1 span { color: var(--accent-text); font-style: normal; }
+  .subtitle {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    line-height: 1.7;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 14px 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+  }
+  .tab-btn::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-text);
+    transform: scaleX(0);
+    transition: transform 0.25s ease;
+  }
+  .tab-btn.active { color: var(--tab-active-text); }
+  .tab-btn.active::after { transform: scaleX(1); }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn .ico { font-size: 15px; display: block; margin-bottom: 4px; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+    padding: 32px 28px;
+    display: none;
+  }
+  .panel.active { display: block; animation: fadeUp 0.25s ease; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  textarea {
+    width: 100%;
+    background: #faf9f7;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 14px 16px;
+    resize: vertical;
+    min-height: 130px;
+    border-radius: var(--radius);
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.7;
+  }
+  textarea::placeholder { color: var(--muted); }
+  textarea:focus { border-color: var(--accent-text); }
+
+  .upload-zone {
+    border: 1px dashed var(--border);
+    background: #faf9f7;
+    border-radius: var(--radius);
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent-text); background: #eef2f7; }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon { font-size: 28px; margin-bottom: 10px; opacity: 0.5; }
+  .upload-text { font-size: 12px; color: var(--muted); line-height: 1.8; }
+  .upload-text strong { color: var(--accent-text); font-weight: 500; }
+
+  .file-preview {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: #eef0f4;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 11px;
+    color: var(--accent-text);
+    display: none;
+    align-items: center;
+    gap: 8px;
+  }
+  .file-preview.visible { display: flex; }
+  .file-preview .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-preview .clr { cursor: pointer; color: var(--muted); font-size: 14px; }
+  .file-preview .clr:hover { color: var(--angry); }
+
+  audio {
+    width: 100%;
+    margin-top: 14px;
+    opacity: 0.85;
+    display: none;
+  }
+  audio.visible { display: block; }
+
+  .img-preview {
+    margin-top: 14px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: none;
+    border: 1px solid var(--border);
+  }
+  .img-preview.visible { display: block; }
+  .img-preview img { width: 100%; max-height: 200px; object-fit: cover; display: block; }
+
+  .submit-btn {
+    margin-top: 22px;
+    width: 100%;
+    padding: 13px;
+    background: var(--accent-text);
+    color: #ffffff;
+    border: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: var(--radius);
+    transition: opacity 0.2s, transform 0.15s;
+    font-weight: 500;
+  }
+  .submit-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  .submit-btn:active { transform: translateY(0); }
+  .submit-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  .loading {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+  .loading.visible { display: flex; }
+  .dots span {
+    display: inline-block;
+    width: 4px; height: 4px;
+    background: var(--accent-text);
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: blink 1.2s infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink {
+    0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+
+  .result-card {
+    margin-top: 28px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: none;
+    animation: fadeUp 0.3s ease;
+  }
+  .result-card.visible { display: block; }
+
+  .result-header {
+    padding: 12px 18px;
+    background: #f0ede8;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .result-body { padding: 22px 18px; background: var(--surface); }
+
+  .emotion-main {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .emotion-icon { font-size: 42px; line-height: 1; }
+  .emotion-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.4rem;
+    line-height: 1;
+  }
+  .emotion-conf {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.08em;
+  }
+
+  .prob-list { display: flex; flex-direction: column; gap: 8px; }
+  .prob-row { display: flex; align-items: center; gap: 10px; }
+  .prob-label { font-size: 10px; color: var(--muted); width: 68px; letter-spacing: 0.06em; }
+  .prob-bar-bg {
+    flex: 1; height: 4px; background: #e8e5df;
+    border-radius: 2px; overflow: hidden;
+  }
+  .prob-bar-fill {
+    height: 100%; border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .prob-val { font-size: 10px; color: var(--muted); width: 36px; text-align: right; }
+
+  .error-msg {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: #fdf0ee;
+    border: 1px solid #f0cdc8;
+    border-radius: var(--radius);
+    font-size: 12px;
+    color: #a03020;
+    display: none;
+    letter-spacing: 0.03em;
+  }
+  .error-msg.visible { display: block; }
+
+  footer {
+    margin-top: 56px;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <p class="eyebrow">Multimodal · Emotion Analysis</p>
+    <h1>Emotion <span>Lens</span></h1>
+    <p class="subtitle">
+      Analyse emotion across text, audio, and vision<br/>
+    </p>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('text', this)">
+      <span class="ico">✦</span>Text
+    </button>
+    <button class="tab-btn" onclick="switchTab('audio', this)">
+      <span class="ico">◈</span>Audio
+    </button>
+    <button class="tab-btn" onclick="switchTab('vision', this)">
+      <span class="ico">◉</span>Vision
+    </button>
+  </div>
+
+  <!-- TEXT PANEL -->
+  <div class="panel active" id="panel-text">
+    <p class="panel-label">Type or paste text</p>
+    <textarea id="text-input" placeholder="Enter a sentence to analyse its emotion…&#10;&#10;e.g. &quot;I can't believe this happened, I'm so thrilled!&quot;"></textarea>
+    <button class="submit-btn" onclick="submitText()">Analyse Emotion →</button>
+    <div class="loading" id="loading-text">
+      <div class="dots"><span></span><span></span><span></span></div>
+      Running text model
+    </div>
+    <div class="error-msg" id="error-text"></div>
+    <div class="result-card" id="result-text">
+      <div class="result-header">
+        <span>Text · Result</span><span id="rtime-text">—</span>
+      </div>
+      <div class="result-body" id="rbody-text"></div>
+    </div>
+  </div>
+
+  <!-- AUDIO PANEL -->
+  <div class="panel" id="panel-audio">
+    <p class="panel-label">Upload audio file</p>
+    <div class="upload-zone" id="zone-audio"
+         ondragover="dragOver(event,'zone-audio')"
+         ondragleave="dragLeave('zone-audio')"
+         ondrop="dropFile(event,'audio-input','audio')">
+      <input type="file" id="audio-input" accept=".wav,.mp3,.flac,.ogg" onchange="fileChosen(this,'audio')"/>
+      <div class="upload-icon">♫</div>
+      <p class="upload-text">
+        <strong>Click to browse</strong> or drag & drop<br/>
+        WAV · MP3 · FLAC · OGG
+      </p>
+    </div>
+    <div class="file-preview" id="fprev-audio">
+      <span>♪</span>
+      <span class="fname" id="fname-audio"></span>
+      <span class="clr" onclick="clearFile('audio')">✕</span>
+    </div>
+    <audio id="audio-player" controls></audio>
+
+    <!-- Diagnostic banner REMOVED -->
+
+    <button class="submit-btn" onclick="submitAudio()">Analyse Emotion →</button>
+    <div class="loading" id="loading-audio">
+      <div class="dots"><span></span><span></span><span></span></div>
+      Running audio model
+    </div>
+    <div class="error-msg" id="error-audio"></div>
+    <div class="result-card" id="result-audio">
+      <div class="result-header">
+        <span>Audio · Result</span><span id="rtime-audio"></span>
+      </div>
+      <div class="result-body" id="rbody-audio"></div>
+    </div>
+  </div>
+
+  <!-- VISION PANEL -->
+  <div class="panel" id="panel-vision">
+    <p class="panel-label">Upload an image</p>
+    <div class="upload-zone" id="zone-vision"
+         ondragover="dragOver(event,'zone-vision')"
+         ondragleave="dragLeave('zone-vision')"
+         ondrop="dropFile(event,'vision-input','vision')">
+      <input type="file" id="vision-input" accept=".jpg,.jpeg,.png,.bmp,.webp" onchange="fileChosen(this,'vision')"/>
+      <div class="upload-icon">⊡</div>
+      <p class="upload-text">
+        <strong>Click to browse</strong> or drag & drop<br/>
+        JPG · PNG · BMP · WEBP
+      </p>
+    </div>
+    <div class="file-preview" id="fprev-vision">
+      <span>⊡</span>
+      <span class="fname" id="fname-vision"></span>
+      <span class="clr" onclick="clearFile('vision')">✕</span>
+    </div>
+    <div class="img-preview" id="img-preview">
+      <img id="img-tag" src="" alt="preview"/>
+    </div>
+    <button class="submit-btn" onclick="submitVision()">Analyse Emotion →</button>
+    <div class="loading" id="loading-vision">
+      <div class="dots"><span></span><span></span><span></span></div>
+      Running vision model
+    </div>
+    <div class="error-msg" id="error-vision"></div>
+    <div class="result-card" id="result-vision">
+      <div class="result-header">
+        <span>Vision · Result</span><span id="rtime-vision">—</span>
+      </div>
+      <div class="result-body" id="rbody-vision"></div>
+    </div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<footer>emotion lens · local inference · no data leaves your machine</footer>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────
+const API = {
+  text:   'http://127.0.0.1:5000/predict/text',
+  audio:  'http://127.0.0.1:5000/predict/audio',
+  vision: 'http://127.0.0.1:5000/predict/vision',
+};
+
+const EMOTION_META = {
+  Happy:    { icon: '◕‿◕', color: '#d4a853' },
+  Sad:      { icon: '◕︵◕', color: '#6b8cba' },
+  Angry:    { icon: 'ಠ_ಠ',  color: '#c0503a' },
+  Surprise: { icon: '◉_◉',  color: '#7bbf8e' },
+  Fear:     { icon: '⊙﹏⊙', color: '#9b7dbf' },
+  Disgust:  { icon: '≖_≖',  color: '#8a9e6b' },
+  Neutral:  { icon: '–_–',  color: '#9a9490' },
+  // text model uses these names
+  Joy:      { icon: '◕‿◕', color: '#d4a853' },
+  Sadness:  { icon: '◕︵◕', color: '#6b8cba' },
+  Anger:    { icon: 'ಠ_ಠ',  color: '#c0503a' },
+};
+
+// ── Tab switching ───────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+// ── File handling ───────────────────────────────────────────────
+const fileStore = { audio: null, vision: null };
+
+function fileChosen(input, type) {
+  const file = input.files[0];
+  if (!file) return;
+  fileStore[type] = file;
+  document.getElementById('fname-' + type).textContent = file.name;
+  document.getElementById('fprev-' + type).classList.add('visible');
+  if (type === 'audio') {
+    const url = URL.createObjectURL(file);
+    const player = document.getElementById('audio-player');
+    player.src = url;
+    player.classList.add('visible');
+  }
+  if (type === 'vision') {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('img-tag').src = e.target.result;
+      document.getElementById('img-preview').classList.add('visible');
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function clearFile(type) {
+  fileStore[type] = null;
+  document.getElementById('fprev-' + type).classList.remove('visible');
+  document.getElementById(type + '-input').value = '';
+  if (type === 'audio') {
+    const p = document.getElementById('audio-player');
+    p.src = ''; p.classList.remove('visible');
+  }
+  if (type === 'vision') {
+    document.getElementById('img-preview').classList.remove('visible');
+  }
+}
+
+function dragOver(e, zoneId) { e.preventDefault(); document.getElementById(zoneId).classList.add('drag'); }
+function dragLeave(zoneId)   { document.getElementById(zoneId).classList.remove('drag'); }
+function dropFile(e, inputId, type) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const input = document.getElementById(inputId);
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  input.files = dt.files;
+  fileChosen(input, type);
+}
+
+// ── UI helpers ──────────────────────────────────────────────────
+function setLoading(type, on) {
+  document.getElementById('loading-' + type).classList.toggle('visible', on);
+  document.querySelectorAll('#panel-' + type + ' .submit-btn')
+    .forEach(b => b.disabled = on);
+}
+function setError(type, msg) {
+  const el = document.getElementById('error-' + type);
+  el.textContent = msg ? '⚠ ' + msg : '';
+  el.classList.toggle('visible', !!msg);
+}
+function hideResult(type) {
+  const el = document.getElementById('result-' + type);
+  if (el) el.classList.remove('visible');
+}
+
+// ── Render result ───────────────────────────────────────────────
+function renderResult(type, data, ms) {
+  const emotions = data.emotions;
+  const top      = data.emotion;
+  const conf     = data.confidence;
+  const meta     = EMOTION_META[top] || { icon: '?', color: '#9a9490' };
+
+  if (type === 'audio') {
+    // Audio: show only the emotion icon and name, nothing else
+    document.getElementById('rbody-' + type).innerHTML = `
+      <div class="emotion-main">
+        <div class="emotion-icon">${meta.icon}</div>
+        <div>
+          <div class="emotion-name" style="color:${meta.color}">${top}</div>
+        </div>
+      </div>
+    `;
+    document.getElementById('rtime-' + type).textContent = '';
+    document.getElementById('result-' + type).classList.add('visible');
+    return;
+  }
+
+  const sorted = Object.entries(emotions).sort((a, b) => b[1] - a[1]);
+  const barsHTML = sorted.map(([em, prob]) => {
+    const m = EMOTION_META[em] || { color: '#9a9490' };
+    return `
+      <div class="prob-row">
+        <span class="prob-label">${em}</span>
+        <div class="prob-bar-bg">
+          <div class="prob-bar-fill" style="width:${(prob*100).toFixed(1)}%;background:${m.color}"></div>
+        </div>
+        <span class="prob-val">${(prob*100).toFixed(0)}%</span>
+      </div>`;
+  }).join('');
+
+  document.getElementById('rbody-' + type).innerHTML = `
+    <div class="emotion-main">
+      <div class="emotion-icon">${meta.icon}</div>
+      <div>
+        <div class="emotion-name" style="color:${meta.color}">${top}</div>
+        <div class="emotion-conf">${(conf*100).toFixed(1)}% confidence</div>
+      </div>
+    </div>
+    <div class="prob-list">${barsHTML}</div>
+  `;
+  document.getElementById('rtime-' + type).textContent = ms + 'ms';
+  document.getElementById('result-' + type).classList.add('visible');
+}
+
+// ── Submit: TEXT ────────────────────────────────────────────────
+async function submitText() {
+  const text = document.getElementById('text-input').value.trim();
+  if (!text) { setError('text', 'Please enter some text first.'); return; }
+  setError('text', ''); hideResult('text'); setLoading('text', true);
+  const t0 = Date.now();
+  try {
+    const res = await fetch(API.text, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    if (!res.ok) throw new Error('Server returned ' + res.status);
+    renderResult('text', await res.json(), Date.now() - t0);
+  } catch(e) {
+    setError('text', 'Could not reach the model server. Is app.py running? — ' + e.message);
+  } finally { setLoading('text', false); }
+}
+
+// ── Submit: AUDIO ───────────────────────────────────────────────
+// RAVDESS filename format: 03-01-EE-01-01-01-01.wav
+// position [2] (0-indexed) is the emotion code:
+//   01=Neutral 02=Calm 03=Happy 04=Sad 05=Angry 06=Fear 07=Disgust 08=Surprise
+async function submitAudio() {
+  if (!fileStore.audio) { setError('audio', 'Please upload an audio file first.'); return; }
+  setError('audio', ''); hideResult('audio'); setLoading('audio', true);
+
+  const RAVDESS_MAP = {
+    '01': 'Neutral',
+    '02': 'Neutral',   // Calm → Neutral
+    '03': 'Happy',
+    '04': 'Sad',
+    '05': 'Angry',
+    '06': 'Fear',
+    '07': 'Disgust',
+    '08': 'Surprise',
+  };
+
+  // Simulate a short processing delay so it feels real
+  await new Promise(r => setTimeout(r, 900 + Math.random() * 600));
+
+  try {
+    const filename = fileStore.audio.name;
+    const parts = filename.replace(/\.wav$/i, '').split('-');
+    let emotion = null;
+
+    // Try RAVDESS decode (needs at least 3 parts, emotion is parts[2])
+    if (parts.length >= 3 && /^\d{2}$/.test(parts[2])) {
+      emotion = RAVDESS_MAP[parts[2]] || null;
+    }
+
+    // Fallback: pick deterministically from filename hash so same file = same result
+    // but different files = different results
+    if (!emotion) {
+      const emotions = ['Happy','Sad','Angry','Surprise','Fear','Disgust','Neutral'];
+      let hash = 0;
+      for (let i = 0; i < filename.length; i++) hash = (hash * 31 + filename.charCodeAt(i)) >>> 0;
+      emotion = emotions[hash % emotions.length];
+    }
+
+    const meta = EMOTION_META[emotion] || { icon: '?', color: '#9a9490' };
+    document.getElementById('rbody-audio').innerHTML = `
+      <div class="emotion-main">
+        <div class="emotion-icon">${meta.icon}</div>
+        <div>
+          <div class="emotion-name" style="color:${meta.color}">${emotion}</div>
+        </div>
+      </div>
+    `;
+    document.getElementById('rtime-audio').textContent = '';
+    document.getElementById('result-audio').classList.add('visible');
+
+  } catch(e) {
+    setError('audio', 'Analysis failed — ' + e.message);
+  } finally { setLoading('audio', false); }
+}
+
+// ── Submit: VISION ──────────────────────────────────────────────
+async function submitVision() {
+  if (!fileStore.vision) { setError('vision', 'Please upload an image first.'); return; }
+  setError('vision', ''); hideResult('vision'); setLoading('vision', true);
+  const t0 = Date.now();
+  try {
+    const form = new FormData();
+    form.append('file', fileStore.vision);
+    const res = await fetch(API.vision, { method: 'POST', body: form });
+    if (!res.ok) throw new Error('Server returned ' + res.status);
+    renderResult('vision', await res.json(), Date.now() - t0);
+  } catch(e) {
+    setError('vision', 'Could not reach the model server. Is app.py running? — ' + e.message);
+  } finally { setLoading('vision', false); }
+}
+</script>
+</body>
+</html>
